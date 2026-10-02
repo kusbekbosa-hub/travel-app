@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Чек-лист для путешествий: вещи под погоду, срок и тип поездки.">
+<style>[hidden]{display:none!important}html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
+<title>В дорогу</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Раскладка: одна колонка 560px. Сверху форма в виде посадочного талона с перфорацией, ниже погода,
+   затем липкая полоса прогресса и список: сначала жёлтый блок «В первую очередь», потом категории. */
+:root{
+  --bg:#E9F0F2; --surface:#FFFFFF; --surface-2:#F2F6F8; --ink:#0F2430; --muted:#587080; --line:#D2DEE3;
+  --accent:#0A6C78; --on-accent:#FFFFFF; --tag:#F5B83D; --on-tag:#2B1F00; --ok:#1F8A55;
+  --display:'Unbounded','Montserrat',system-ui,sans-serif;
+  --body:'Onest',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B1820; --surface:#13252E; --surface-2:#1A303B; --ink:#E7F1F4; --muted:#8FA6B1; --line:#27414D;
+    --accent:#46C2CF; --on-accent:#04232A; --tag:#F5B83D; --on-tag:#2B1F00; --ok:#5CCB8D; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B1820; --surface:#13252E; --surface-2:#1A303B; --ink:#E7F1F4; --muted:#8FA6B1; --line:#27414D;
+  --accent:#46C2CF; --on-accent:#04232A; --tag:#F5B83D; --on-tag:#2B1F00; --ok:#5CCB8D; color-scheme:dark;
+}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--body);padding-inline:16px;padding-block:20px 56px}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.mono,.lab,.meta,.code,.pill,.info dt{font-family:var(--mono)}
+
+.head{display:flex;flex-direction:column;gap:6px;padding-top:4px}
+h1{margin:0;font:600 24px/1.15 var(--display);text-wrap:balance;letter-spacing:-.01em}
+.lead{margin:0;color:var(--muted);font-size:15px;max-width:46ch}
+
+.lab{display:block;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+
+/* форма-талон */
+.pass{background:var(--surface);border:1px solid var(--line);border-radius:22px;position:relative;overflow:hidden}
+.pass-top{padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px}
+.dest-row{display:flex;align-items:flex-end;gap:12px}
+#dest{flex:1;min-width:0;border:0;border-bottom:2px solid var(--line);border-radius:0;background:transparent;color:var(--ink);
+  font:600 26px/1.2 var(--display);padding:4px 0 8px;outline:0;letter-spacing:-.01em}
+#dest::placeholder{color:var(--muted);opacity:.55}
+#dest:focus{border-bottom-color:var(--accent)}
+.code{flex:none;font-size:24px;font-weight:600;color:var(--accent);padding-bottom:10px;letter-spacing:.06em}
+.quick,.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:500 14px/1 var(--body);
+  padding:11px 14px;min-height:40px;border-radius:999px;transition:background .15s,color .15s,border-color .15s}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.chip.q{padding:9px 12px;min-height:36px;font-size:13px;color:var(--muted)}
+.chip:focus-visible,.step button:focus-visible,select:focus-visible,#addIn:focus-visible,.link:focus-visible,.del:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.hint{margin:0;font-size:14px;color:var(--muted)}
+.climate{display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--surface-2);border-radius:14px}
+
+.perf{position:relative;margin:0 18px;border-top:2px dashed var(--line)}
+.perf::before,.perf::after{content:"";position:absolute;top:-11px;width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.perf::before{left:-29px}
+.perf::after{right:-29px}
+.pass-bot{padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{min-width:0}
+.field.wide{grid-column:1 / -1}
+select{width:100%;font:500 16px/1.2 var(--body);padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);min-height:48px}
+.step{display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;min-height:48px;padding:3px}
+.step button{width:42px;height:42px;border:0;border-radius:9px;background:var(--surface);color:var(--ink);font:500 22px/1 var(--body);display:grid;place-items:center}
+.step output{font:500 15px/1 var(--body);text-align:center;flex:1;white-space:nowrap}
+
+/* погода */
+.wx{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.wx-main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center}
+.wx-l{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.wx-l .lab{margin:0}
+.wx-t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wx-t b{font:600 34px/1 var(--display);letter-spacing:-.02em}
+.wx-t span{font:500 14px/1 var(--mono);color:var(--muted)}
+.pill{font-size:11px;font-weight:500;letter-spacing:.06em;padding:6px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface-2)}
+#wSpark svg{display:block;width:100%;height:auto;max-width:100%}
+.sp-area{fill:var(--accent);opacity:.14;stroke:none}
+.sp-line{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.sp-base{fill:none;stroke:var(--line);stroke-width:1}
+.sp-dot{fill:var(--tag);stroke:var(--accent);stroke-width:2.5}
+.sp-lab{fill:var(--muted);font:500 10px var(--mono)}
+.sp-val{fill:var(--ink);font:600 11px var(--mono)}
+.adv{margin:0;font-size:15px}
+.info{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 14px;padding-top:12px;border-top:1px dashed var(--line);font-size:14px}
+.info dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.info dd{margin:0;overflow-wrap:anywhere}
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.notes:empty{display:none}
+.notes li{display:flex;gap:10px;align-items:flex-start}
+.notes li::before{content:"!";flex:none;width:20px;height:20px;border-radius:50%;background:var(--tag);color:var(--on-tag);font:700 12px/20px var(--mono);text-align:center}
+
+/* липкая полоса прогресса */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px}
+.bar-in{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.bar-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bar-txt{font:500 14px/1.2 var(--body)}
+.bar-txt b{font:600 15px var(--mono)}
+.chip.sm{padding:8px 12px;min-height:34px;font-size:13px}
+.track{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.track i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .25s}
+
+/* список */
+.list{display:flex;flex-direction:column;gap:14px}
+.sec,.prio{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.prio{border-color:var(--tag)}
+.prio-head{background:var(--tag);color:var(--on-tag);display:flex;align-items:center;gap:12px;padding:14px 16px}
+.hole{flex:none;width:14px;height:14px;border-radius:50%;background:var(--surface);border:2px solid var(--on-tag);opacity:.9}
+.prio-head h2,.sec summary h2{margin:0;font:600 15px/1.2 var(--display);letter-spacing:-.005em}
+.prio-head .sub{display:block;font:500 12px/1.3 var(--body);opacity:.8;margin-top:3px}
+.cnt{margin-left:auto;font:600 13px/1 var(--mono);white-space:nowrap}
+.sec summary{list-style:none;display:flex;align-items:center;gap:12px;padding:16px;cursor:pointer;min-height:56px}
+.sec summary::-webkit-details-marker{display:none}
+.sec summary .sub{display:block;font:500 12px/1.3 var(--body);color:var(--muted);margin-top:3px}
+.sec .cnt{color:var(--muted)}
+.sec.full .cnt{color:var(--ok)}
+.chev{flex:none;width:9px;height:9px;border:solid var(--muted);border-width:0 2px 2px 0;transform:rotate(45deg);margin-left:4px;transition:transform .2s;margin-bottom:3px}
+.sec[open] .chev{transform:rotate(-135deg);margin-bottom:-3px}
+
+.item{display:flex;align-items:stretch;border-top:1px solid var(--line)}
+.lbl{position:relative;flex:1;min-width:0;display:flex;gap:14px;align-items:flex-start;padding:13px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lbl input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.info:empty{display:none}
+.box{flex:none;width:26px;height:26px;margin-top:1px;border-radius:8px;border:2px solid var(--muted);display:grid;place-items:center;transition:background .15s,border-color .15s}
+.box::after{content:"";width:6px;height:12px;border:solid var(--on-accent);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px) scale(0);transition:transform .15s}
+.item.done .box{background:var(--accent);border-color:var(--accent)}
+.item.done .box::after{transform:rotate(45deg) translate(-1px,-1px) scale(1)}
+.lbl input:focus-visible + .box{outline:3px solid var(--accent);outline-offset:2px}
+.tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.nm{font-weight:500;overflow-wrap:anywhere}
+.nt{font-size:13px;color:var(--muted);line-height:1.35}
+.meta{font-size:10px;font-weight:500;line-height:1;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:5px}
+.item.done .nm{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1.5px}
+.item.done .nt{opacity:.7}
+.hide-done .item.done{display:none}
+.del{flex:none;align-self:center;border:0;background:transparent;color:var(--muted);width:44px;height:44px;border-radius:10px;font-size:22px;line-height:1;margin-right:6px}
+
+.add{display:flex;gap:8px;padding:14px 16px;border-top:1px solid var(--line)}
+#addIn{flex:1;min-width:0;font:400 16px/1.2 var(--body);padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);min-height:48px}
+.btn{border:0;background:var(--accent);color:var(--on-accent);font:600 15px/1 var(--body);padding:0 16px;border-radius:12px;min-height:48px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:20px;padding:28px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font:600 16px/1.3 var(--display);margin-bottom:6px}
+.done-msg{margin:0;text-align:center;font:600 14px var(--body);color:var(--ok)}
+
+.foot{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:13px;color:var(--muted)}
+.foot p{margin:0}
+.link{border:0;background:transparent;color:var(--accent);font:600 14px var(--body);padding:10px 14px;min-height:44px;border-radius:10px;text-decoration:underline;text-underline-offset:3px}
+
+@media (max-width:380px){
+  .wx-main{grid-template-columns:1fr}
+  #dest{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<main class="app">
+  <header class="head">
+    <h1>Что взять с собой</h1>
+    <p class="lead">Введите место и параметры поездки. Список подстроится под погоду, срок и тип поездки.</p>
+  </header>
+
+  <section class="pass" aria-label="Параметры поездки">
+    <div class="pass-top">
+      <div>
+        <label class="lab" for="dest">Куда</label>
+        <div class="dest-row">
+          <input id="dest" type="text" list="places" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Турция, Алматы, Париж" enterkeyhint="done">
+          <span class="code" id="code" title="Код аэропорта">---</span>
+        </div>
+        <datalist id="places"></datalist>
+      </div>
+      <div class="quick" id="quick" aria-label="Популярные направления"></div>
+      <div class="climate" id="climateBox" hidden>
+        <p class="hint" id="climateHint"></p>
+        <div class="row" id="climateChips" role="group" aria-label="Климат"></div>
+      </div>
+    </div>
+    <div class="perf" aria-hidden="true"></div>
+    <div class="pass-bot">
+      <div class="field">
+        <label class="lab" for="month">Месяц</label>
+        <select id="month"></select>
+      </div>
+      <div class="field">
+        <span class="lab" id="daysLab">Длительность</span>
+        <div class="step" role="group" aria-labelledby="daysLab">
+          <button type="button" id="dMinus" aria-label="Меньше дней">−</button>
+          <output id="daysOut" aria-live="polite">7 дней</output>
+          <button type="button" id="dPlus" aria-label="Больше дней">+</button>
+        </div>
+      </div>
+      <div class="field wide">
+        <span class="lab" id="typeLab">Тип поездки</span>
+        <div class="row" id="types" role="group" aria-labelledby="typeLab"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wx" id="wx" aria-label="Погода и условия" hidden>
+    <div class="wx-main">
+      <div class="wx-l">
+        <span class="lab" id="wMonth"></span>
+        <div class="wx-t"><b id="wHi"></b><span id="wLo"></span></div>
+        <span class="pill" id="wRain"></span>
+      </div>
+      <div id="wSpark"></div>
+    </div>
+    <p class="adv" id="wAdv"></p>
+    <dl class="info" id="wInfo"></dl>
+    <ul class="notes" id="wNotes"></ul>
+  </section>
+
+  <div class="bar" id="bar" hidden>
+    <div class="bar-in">
+      <div class="bar-top">
+        <span class="bar-txt" id="barTxt"></span>
+        <button type="button" class="chip sm" id="hideDone" aria-pressed="false">Скрыть собранное</button>
+      </div>
+      <div class="track" role="progressbar" aria-label="Собрано вещей" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="track"><i id="fill"></i></div>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer class="foot" id="foot" hidden>
+    <p>Отметки хранятся на этом устройстве.</p>
+    <button type="button" class="link" id="reset">Сбросить отметки</button>
+  </footer>
+</main>
+
+<script>
+/* ===== Данные: средние дневные (hi) и ночные (lo) температуры по месяцам, осадки 0 редко / 1 возможны / 2 часто ===== */
+var MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+var MON_PREP=['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'];
+var MON_SHORT=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+var SEASON=['Зима','Зима','Весна','Весна','Весна','Лето','Лето','Лето','Осень','Осень','Осень','Зима'];
+var TYPES=[['beach','Пляж'],['city','Город'],['hike','Горы и треки'],['biz','Командировка'],['ski','Лыжи']];
+var CATS=[
+  ['docs','Документы и деньги','Документы'],
+  ['clothes','Одежда','Одежда'],
+  ['tech','Техника','Техника'],
+  ['hyg','Гигиена','Гигиена'],
+  ['med','Лекарства','Лекарства'],
+  ['loc','Для этого места','Место']
+];
+var ENTRY='Правила зависят от гражданства — проверьте на сайте МИД до покупки билетов';
+var SCHENGEN='Для многих гражданств нужна шенгенская виза — оформляют заранее';
+var D=[
+ {id:'tr',title:'Турция',code:'AYT',names:['турция','турции','turkey','анталья','анталия','аланья','кемер','белек','сиде','бодрум','мармарис','фетхие'],
+  intl:1,types:['beach'],cur:'евро или доллары и немного лир',plug:'Тип C/F, как в Европе: ваши зарядки подойдут',adapter:0,entry:ENTRY,
+  mosq:0,stomach:1,coral:0,snorkel:0,pick:0,
+  hi:[15,16,19,23,28,33,36,36,32,27,21,17],lo:[7,7,9,13,17,22,25,25,21,17,12,9],rain:[2,2,1,1,0,0,0,0,0,1,1,2],
+  local:[['Платок или шарф для мечетей','Плечи и колени должны быть закрыты',2],['Мелкие евро или лиры','Для чаевых, рынков и такси: карты принимают не везде',2],['Шлёпанцы для камней','На многих пляжах дно каменистое',3]]},
+ {id:'eg',title:'Египет',code:'HRG',names:['египет','египта','egypt','хургада','шарм-эль-шейх','шарм эль шейх','шарм','дахаб','макади'],
+  intl:1,types:['beach'],cur:'доллары или евро',plug:'Тип C/F, как в Европе: ваши зарядки подойдут',adapter:0,entry:'Многим оформляют визу по прилёте, но уточните для своего паспорта',
+  mosq:0,stomach:2,coral:2,snorkel:1,pick:0,
+  hi:[22,23,26,31,35,37,38,38,35,32,27,23],lo:[14,14,17,21,25,27,28,28,26,23,19,15],rain:[0,0,0,0,0,0,0,0,0,0,0,0],
+  local:[['Мелкие доллары или евро на чаевые','Чаевые оставляют почти везде',2],['Бутилированная вода','Пейте и чистите зубы бутилированной водой',2]]},
+ {id:'th',title:'Таиланд',code:'BKK',names:['таиланд','таиланда','thailand','тайланд','бангкок','пхукет','паттайя','самуи','краби','чиангмай'],
+  intl:1,types:['beach'],cur:'баты и немного долларов',plug:'Типы A/B/C: наши вилки обычно подходят, но переходник не помешает',adapter:1,entry:'Для многих гражданств безвиз, но срок и условия различаются: уточните',
+  mosq:2,stomach:2,coral:1,snorkel:1,pick:0,
+  hi:[32,33,34,35,34,33,32,32,32,32,32,31],lo:[22,24,26,27,26,26,25,25,25,25,24,22],rain:[0,0,0,1,2,2,2,2,2,2,1,0],
+  local:[['Одежда с закрытыми плечами и коленями','Для храмов и дворцов',2],['Наличные баты','Мелкие купюры нужны для рынков и уличной еды',2],['Дождевик-пончо','В сезон дождей ливни начинаются внезапно',2,'wet'],['Лёгкий шарф от кондиционеров','В торговых центрах и транспорте прохладно',3]]},
+ {id:'ae',title:'Дубай',code:'DXB',names:['дубай','оаэ','эмираты','объединённые арабские эмираты','объединенные арабские эмираты','uae','dubai','абу-даби','абу даби','шарджа'],
+  intl:1,types:['city','beach'],cur:'дирхамы или доллары',plug:'Тип G (британские розетки): нужен переходник',adapter:2,entry:'Для многих гражданств безвиз, но условия различаются: уточните',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[24,25,28,33,38,40,42,42,40,36,30,26],lo:[14,15,18,21,25,27,30,30,27,23,19,16],rain:[0,0,0,0,0,0,0,0,0,0,0,0],
+  local:[['Одежда с закрытыми плечами и коленями','Для торговых центров, мечетей и госучреждений',2],['Лёгкая кофта','В торговых центрах и метро очень холодные кондиционеры',2],['Список разрешённых лекарств','Некоторые препараты, например с кодеином, ввозят только по рецепту',1]]},
+ {id:'fr',title:'Париж',code:'CDG',names:['париж','парижа','франция','франции','paris','france'],
+  intl:1,types:['city'],cur:'евро',plug:'Тип C/E, как в Европе: ваши зарядки подойдут',adapter:0,entry:SCHENGEN,
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:1,
+  hi:[7,8,12,16,19,23,25,25,21,16,10,7],lo:[3,3,5,7,11,14,16,16,13,10,6,4],rain:[1,1,1,1,1,1,1,1,1,1,2,2],
+  local:[['Приложение метро и билетов','Скачайте до выезда и купите билеты заранее',3]]},
+ {id:'ala',title:'Алматы',code:'ALA',names:['алматы','алма-ата','алма ата','almaty','алмата','шымбулак','медеу'],
+  intl:0,types:['city','hike'],cur:'тенге',plug:'Тип C/F: ваши зарядки подойдут',adapter:0,entry:'',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[-1,1,9,18,23,28,30,29,24,16,7,1],lo:[-9,-8,-1,7,12,16,18,17,11,4,-2,-6],rain:[0,1,1,2,2,1,0,0,0,1,1,1],
+  local:[['Тёплый слой для Шымбулака и Медеу','В горах заметно холоднее, чем в городе',2],['Кроссовки с хорошим протектором','Тропы к Кок-Тобе, озёрам и водопадам',2],['Немного тенге наличными','Для рынков и мелких покупок',2],['Крем и очки от горного солнца','Ультрафиолета в горах больше',2]]},
+ {id:'nqz',title:'Астана',code:'NQZ',names:['астана','астану','нур-султан','нурсултан','astana','акмола'],
+  intl:0,types:['city'],cur:'тенге',plug:'Тип C/F: ваши зарядки подойдут',adapter:0,entry:'',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[-10,-9,-2,12,20,26,28,26,20,11,0,-7],lo:[-18,-18,-10,1,8,13,16,13,7,0,-8,-14],rain:[0,0,0,1,1,1,2,1,1,1,1,0],
+  local:[['Ветрозащитная куртка','На открытых площадках ветер сильнее, чем в центре',2],['Крем для рук и губ','Воздух сухой и ветреный',3],['Тёплые носки и термобельё','Зимой бывают морозы ниже −25°',2,'cold']]},
+ {id:'ist',title:'Стамбул',code:'IST',names:['стамбул','стамбула','istanbul','константинополь'],
+  intl:1,types:['city'],cur:'лиры и немного евро',plug:'Тип C/F, как в Европе: ваши зарядки подойдут',adapter:0,entry:ENTRY,
+  mosq:0,stomach:1,coral:0,snorkel:0,pick:1,
+  hi:[9,9,12,17,22,27,29,29,25,20,15,11],lo:[4,4,6,9,14,18,21,21,18,14,10,7],rain:[2,2,2,1,1,0,0,0,1,1,2,2],
+  local:[['Платок или шарф для мечетей','Плечи и колени должны быть закрыты',2],['Обувь с нескользкой подошвой','Улицы крутые, брусчатка скользит в дождь',2],['Мелкие лиры','Для трамвая, парома и уличной еды',2]]},
+ {id:'rm',title:'Рим',code:'FCO',names:['рим','рима','италия','италии','rome','italy','венеция','милан','флоренция'],
+  intl:1,types:['city'],cur:'евро',plug:'Тип C/F/L: ваши зарядки подойдут',adapter:0,entry:SCHENGEN,
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:1,
+  hi:[12,13,16,19,24,28,31,31,27,22,16,13],lo:[4,4,7,9,13,17,20,20,17,13,8,5],rain:[1,1,1,1,1,0,0,0,1,2,2,2],
+  local:[['Закрытая одежда для церквей','Плечи и колени закрыты, иначе не пустят в Ватикан',2],['Обувь для брусчатки','Много ходьбы по неровным мостовым',2],['Многоразовая бутылка','В городе много питьевых фонтанчиков',3]]},
+ {id:'bcn',title:'Барселона',code:'BCN',names:['барселона','барселоны','испания','испании','barcelona','spain','мадрид','валенсия'],
+  intl:1,types:['city','beach'],cur:'евро',plug:'Тип C/F, как в Европе: ваши зарядки подойдут',adapter:0,entry:SCHENGEN,
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:1,
+  hi:[13,14,16,18,22,26,29,29,26,22,16,14],lo:[6,7,9,11,15,19,22,22,19,15,10,7],rain:[0,0,1,1,1,0,0,0,1,2,1,0],
+  local:[['Билеты в Саграда-Фамилию','Бронируйте заранее онлайн, очереди длинные',3]]},
+ {id:'tbs',title:'Тбилиси',code:'TBS',names:['тбилиси','грузия','грузии','georgia','tbilisi','батуми','кутаиси'],
+  intl:1,types:['city'],cur:'лари и немного долларов',plug:'Тип C/F: ваши зарядки подойдут',adapter:0,entry:'Для многих гражданств безвиз, но срок и условия различаются: уточните',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[6,8,13,19,24,29,32,32,27,20,13,8],lo:[-1,0,4,9,13,17,20,20,16,10,5,1],rain:[0,0,1,2,2,1,1,1,1,1,1,0],
+  local:[['Обувь для холмов','Крутые улицы и старая брусчатка',2],['Немного лари наличными','Для рынков и маршруток',2],['Закрытая одежда для монастырей','Плечи и колени закрыты, женщинам нужен платок',3]]},
+ {id:'bali',title:'Бали',code:'DPS',names:['бали','индонезия','индонезии','bali','indonesia','убуд','чангу','семиньяк'],
+  intl:1,types:['beach'],cur:'рупии и немного долларов',plug:'Тип C/F: ваши зарядки подойдут',adapter:0,entry:'Для многих нужна виза по прилёте или электронная: уточните',
+  mosq:2,stomach:2,coral:2,snorkel:1,pick:0,
+  hi:[30,30,31,31,31,30,30,30,31,31,31,30],lo:[24,24,24,24,24,23,23,23,23,24,24,24],rain:[2,2,2,1,1,0,0,0,0,1,2,2],
+  local:[['Страховка с арендой байка','Без неё лечение после аварии оплачиваете сами',2],['Наличные рупии','Мелкие купюры для рынков и храмов',2],['Шарф или саронг для храмов','Саронг обычно дают на входе, но свой удобнее',3],['Крем, безопасный для рифов','Обычные кремы вредят кораллам',3]]},
+ {id:'mv',title:'Мальдивы',code:'MLE',names:['мальдивы','мальдив','maldives','мале'],
+  intl:1,types:['beach'],cur:'доллары',plug:'Тип D/G: нужен переходник',adapter:2,entry:'Для многих виза по прилёте, но уточните для своего паспорта',
+  mosq:1,stomach:0,coral:1,snorkel:1,pick:0,
+  hi:[30,31,31,32,31,30,30,30,30,30,30,30],lo:[25,25,26,27,27,26,26,26,26,26,26,25],rain:[0,0,0,1,2,2,2,2,2,2,1,1],
+  local:[['Крем, безопасный для рифов','Обычные кремы вредят кораллам',2],['Сухой мешок или гидрочехол','Для лодок и экскурсий',3],['Закрытая одежда для местных островов','На островах с местным населением пляжная одежда ограничена',2]]},
+ {id:'sch',title:'Сочи',code:'AER',names:['сочи','адлер','красная поляна','sochi'],
+  intl:0,types:['beach'],cur:'рубли',plug:'Тип C/F: ваши зарядки подойдут',adapter:0,entry:'',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[9,10,13,18,23,27,30,30,26,21,15,11],lo:[2,3,6,10,14,18,21,21,17,12,7,4],rain:[2,2,2,1,1,1,1,1,1,1,2,2],
+  local:[['Кроссовки для маршрутов','Красная Поляна, тропы и лестницы',2],['Тёплая куртка для гор','Наверху заметно холоднее, чем на берегу',2]]},
+ {id:'msk',title:'Москва',code:'SVO',names:['москва','москву','москвы','moscow','санкт-петербург','петербург','питер'],
+  intl:0,types:['city'],cur:'рубли',plug:'Тип C/F: ваши зарядки подойдут',adapter:0,entry:'',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[-4,-3,3,12,19,22,24,22,16,9,2,-2],lo:[-9,-9,-4,3,9,13,15,13,8,3,-2,-6],rain:[1,0,0,1,1,2,2,2,1,1,1,1],
+  local:[['Обувь для долгих прогулок','Метро, парки и пешие маршруты',2],['Тёплый слой на вечер','Вечером заметно холоднее',3,'cool']]},
+ {id:'ldn',title:'Лондон',code:'LHR',names:['лондон','лондона','london','англия','великобритания','uk'],
+  intl:1,types:['city'],cur:'фунты',plug:'Тип G (британские розетки): нужен переходник',adapter:2,entry:'Нужна виза или электронное разрешение: оформляют заранее',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:1,
+  hi:[8,9,12,15,18,21,24,23,20,16,11,8],lo:[3,3,4,6,9,12,14,14,12,9,6,4],rain:[1,1,1,1,1,1,1,1,1,2,2,2],
+  local:[['Непромокаемая куртка и зонт','Погода меняется несколько раз за день',2],['Бесконтактная карта','Транспорт оплачивают картой или телефоном',2]]},
+ {id:'nyc',title:'Нью-Йорк',code:'JFK',names:['нью-йорк','нью йорк','нью-йорка','new york','nyc','сша','америка','usa'],
+  intl:1,types:['city'],cur:'доллары',plug:'Тип A/B, 120 В: нужен переходник, зарядки должны поддерживать 100–240 В',adapter:2,entry:'Нужна виза или электронное разрешение: оформляют заранее',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[4,6,11,17,23,28,31,30,26,19,13,7],lo:[-3,-2,2,8,14,19,23,22,18,11,6,0],rain:[1,1,1,1,1,1,1,1,1,1,1,1],
+  local:[['Бесконтактная карта или телефон для метро','Проезд оплачивают прикладыванием',3],['Обувь для 15–20 тысяч шагов','Город лучше всего смотреть пешком',2]]},
+ {id:'tok',title:'Токио',code:'HND',names:['токио','япония','японии','tokyo','japan','осака','киото'],
+  intl:1,types:['city'],cur:'йены',plug:'Тип A, 100 В: нужен переходник',adapter:2,entry:'Для многих гражданств нужна виза: оформляют заранее',
+  mosq:0,stomach:0,coral:0,snorkel:0,pick:0,
+  hi:[10,11,14,20,24,26,30,31,27,22,17,12],lo:[2,3,6,11,16,20,24,25,22,16,10,5],rain:[0,1,1,1,1,2,1,1,2,2,1,0],
+  local:[['Наличные йены','Во многих кафе и храмах принимают только наличные',2],['Целые чистые носки','В храмах и ресторанах снимают обувь',3],['Пакет для мусора','В городе почти нет урн: мусор носят с собой',3]]},
+ {id:'cy',title:'Кипр',code:'LCA',names:['кипр','кипра','cyprus','ларнака','пафос','айя-напа','айя напа','лимассол'],
+  intl:1,types:['beach'],cur:'евро',plug:'Тип G (британские розетки): нужен переходник',adapter:2,entry:'Нужна виза или Pro Visa: уточните для своего паспорта',
+  mosq:0,stomach:0,coral:1,snorkel:0,pick:0,
+  hi:[17,17,20,24,29,33,36,36,33,29,23,19],lo:[8,8,9,12,16,20,23,24,21,17,13,10],rain:[2,2,1,0,0,0,0,0,0,1,1,2],
+  local:[['Права и международное удостоверение','Если планируете аренду машины',2]]}
+];
+var GENERIC={temperate:'fr',hot:'ae',tropic:'th',cold:'msk'};
+var CLIMATES=[['temperate','Умеренный'],['hot','Жаркий и сухой'],['tropic','Тропики'],['cold','Холодный']];
+var TROPIC_IDS={th:1,bali:1,mv:1};
+/* ===== Логика ===== */
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function norm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim()}
+function temp(v){return (v>0?'+':v<0?'−':'')+Math.abs(v)+'°'}
+function plural(n,a,b,c){var m=n%100,k=n%10;if(m>10&&m<20)return c;if(k===1)return a;if(k>=2&&k<=4)return b;return c}
+function byId(id){for(var i=0;i<D.length;i++)if(D[i].id===id)return D[i];return null}
+D.forEach(function(d){d.n=d.names.map(norm)});
+
+function resolve(q){
+  var n=norm(q),i,j,a;
+  if(n.length<2)return null;
+  for(i=0;i<D.length;i++)for(j=0;j<D[i].n.length;j++)if(D[i].n[j]===n)return D[i];
+  for(i=0;i<D.length;i++)for(j=0;j<D[i].n.length;j++){a=D[i].n[j];if(n.length>=3&&a.indexOf(n)===0)return D[i]}
+  for(i=0;i<D.length;i++)for(j=0;j<D[i].n.length;j++){a=D[i].n[j];if(a.length>=4&&n.indexOf(a)>=0)return D[i]}
+  return null;
+}
+
+var KEY='v-dorogu:v1';
+var S={dest:'Турция',month:new Date().getMonth(),days:7,types:['beach'],climate:'temperate',checks:{},custom:{},hideDone:false,collapsed:{},cur:null,w:null,lastId:null};
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify({dest:S.dest,month:S.month,days:S.days,types:S.types,climate:S.climate,checks:S.checks,custom:S.custom,hideDone:S.hideDone}))}catch(e){}
+}
+function load(){
+  try{
+    var j=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(!j||typeof j!=='object')return;
+    if(typeof j.dest==='string')S.dest=j.dest.slice(0,60);
+    if(j.month>=0&&j.month<12)S.month=j.month|0;
+    if(j.days>=1&&j.days<=60)S.days=j.days|0;
+    if(Array.isArray(j.types)){
+      var ok=j.types.filter(function(t){return TYPES.some(function(x){return x[0]===t})});
+      if(ok.length)S.types=ok;
+    }
+    if(GENERIC[j.climate])S.climate=j.climate;
+    if(j.checks&&typeof j.checks==='object')S.checks=j.checks;
+    if(j.custom&&typeof j.custom==='object')S.custom=j.custom;
+    S.hideDone=!!j.hideDone;
+  }catch(e){}
+}
+function tripKey(){return S.cur?S.cur.id:'x:'+norm(S.dest)}
+
+function weather(){
+  var m=S.month,r=S.cur||byId(GENERIC[S.climate]||'fr');
+  return {hi:r.hi[m],lo:r.lo[m],rain:r.rain[m],ref:r};
+}
+
+/* Подбор вещей: правила зависят от погоды, длительности, типа поездки и места */
+function build(){
+  var c=S.cur,w=S.w,T={},d=S.days,out=[],i=0;
+  S.types.forEach(function(t){T[t]=1});
+  var hot=w.hi>=28,warm=w.hi>=22,cool=w.hi<=15,chill=w.hi<=18||w.lo<=8,cold=w.hi<=8,frost=w.hi<=2||w.lo<=-6;
+  var eve=w.hi-w.lo>=11&&w.lo<=14,wet=w.rain>=2,damp=w.rain>=1;
+  var n=Math.min(d,7),short=d<=3,long=d>7;
+  var beach=!!T.beach,city=!!T.city,hike=!!T.hike,biz=!!T.biz,ski=!!T.ski&&w.hi<=10;
+  var sun=(w.hi>=22&&w.rain<=1)||(beach&&w.hi>=24)||hike||ski;
+  var intl=c?!!c.intl:true;
+  var flag={wet:wet,cold:cold,hot:hot,cool:chill};
+  function A(cat,id,name,prio,note){out.push({cat:cat,id:id,name:name,prio:prio,note:note||'',o:i++})}
+
+  /* Документы и деньги */
+  A('docs','passport',intl?'Паспорт':'Паспорт или удостоверение личности',1,intl?'Срок действия — ещё минимум полгода после возвращения':'Проверьте, какой документ нужен для вашего маршрута');
+  A('docs','tickets','Билеты и бронь отеля',1,'Сохраните в телефоне и скачайте офлайн');
+  if(intl)A('docs','visa','Виза или разрешение на въезд',1,(c&&c.entry)||ENTRY);
+  A('docs','cards','Банковские карты',1,'Лучше две, от разных банков');
+  A('docs','cash','Наличные',1,'Валюта: '+(c?c.cur:'местная валюта'));
+  A('docs','ins','Страховка путешественника',intl?((hike||ski)?1:2):((hike||ski)?2:3),(hike||ski)?'Проверьте, что горы и зимние виды спорта включены':'Полис в телефоне и номер ассистанса');
+  A('docs','copies','Копии документов в телефоне и облаке',2);
+  if(biz)A('docs','bizcards','Визитки и документы для встреч',2);
+  if(intl)A('docs','pen','Ручка для миграционной карты',3);
+
+  /* Одежда */
+  A('clothes','under','Нижнее бельё ×'+(n+1),2,long?'Дольше недели: берите на 7 дней и стирайте':'');
+  A('clothes','socks',(cold?'Тёплые носки ×':'Носки ×')+(n+1),2);
+  A('clothes','tee',(cool?'Футболки и лонгсливы ×':'Футболки ×')+n,2);
+  if(warm)A('clothes','shorts','Шорты или лёгкие юбки ×'+(hot?3:2),2);
+  if(!hot)A('clothes','pants','Брюки или джинсы ×'+(short?1:2),2);
+  else A('clothes','lpants','Лёгкие брюки или длинная юбка',3,'Для храмов, вечеров и кондиционеров');
+  if(chill||eve)A('clothes','sweater',cold?'Свитер или флиска ×2':'Свитер или толстовка',2);
+  if(cold)A('clothes','jacket','Тёплая куртка',1,frost?'Ночью бывает до '+temp(w.lo):'');
+  else if(chill)A('clothes','jacket','Куртка или ветровка',2);
+  else if(w.lo<=18)A('clothes','layer','Лёгкая кофта на вечер',3);
+  if(cold)A('clothes','hat','Шапка, шарф и перчатки',frost?1:2);
+  if(frost)A('clothes','thermal','Термобельё',ski?1:2);
+  if(wet)A('clothes','rain','Дождевик или непромокаемая куртка',2);
+  if(damp)A('clothes','umb','Компактный зонт',3);
+  if(beach){
+    A('clothes','swim','Купальник или плавки ×2',w.hi>=24?1:(w.hi>=18?2:3),w.hi<18?'Купаться прохладно, оставлено по желанию':'');
+    A('clothes','flip','Шлёпанцы',2);
+    A('clothes','cover','Пляжная накидка или лёгкая рубашка',3);
+  }
+  if(sun){
+    A('clothes','glasses','Солнцезащитные очки',2,(hike||ski)?'В горах и на снегу глаза устают быстрее':'');
+    A('clothes','cap','Кепка или панама',hot?2:3);
+  }
+  if(city)A('clothes','walk','Удобная обувь для ходьбы',2,'В городе легко набегает 15–20 тысяч шагов');
+  if(hike)A('clothes','trek','Трекинговые ботинки или кроссовки с протектором',1,'Новую пару разносите заранее');
+  if(ski)A('clothes','boots','Тёплые непромокаемые ботинки',2,'Горнолыжные ботинки проще взять напрокат');
+  if(biz){A('clothes','biz','Деловая одежда ×'+Math.min(d,4),1);A('clothes','bizshoes','Классическая обувь',2)}
+  if(ski){
+    A('clothes','skijacket','Горнолыжная куртка и штаны',1,'Можно взять напрокат на месте');
+    A('clothes','skigloves','Горнолыжные перчатки',1);
+    A('clothes','skigoggles','Маска от солнца и ветра',2);
+    A('clothes','skisocks','Термоноски ×'+n,2);
+    A('clothes','helmet','Шлем',2,'Обычно есть в прокате');
+  }
+  if(!short)A('clothes','shoes2','Сменная обувь',3);
+  if(!short)A('clothes','pj','Пижама',3);
+  A('clothes','sport',hike?'Спортивная одежда ×2':'Спортивная одежда',hike?2:3,hike?'':'Если планируете тренироваться');
+
+  /* Техника */
+  A('tech','phone','Телефон',1);
+  A('tech','charger','Зарядка и кабель',1);
+  A('tech','pb','Powerbank',(city||hike)?2:3,'Хватит на день навигации и фото');
+  var ad=c?c.adapter:1;
+  if(ad)A('tech','adapter','Переходник для розеток',ad===2?2:3,c?c.plug:'Проверьте тип розеток и напряжение в стране');
+  if(intl)A('tech','sim','eSIM или местная SIM-карта',2,'Роуминг обычно дороже');
+  A('tech','maps','Офлайн-карты и билеты в телефоне',(city||hike)?2:3,'Скачайте до выезда');
+  if(biz){A('tech','laptop','Ноутбук с зарядкой',1);A('tech','flash','Презентация на флешке и в облаке',2)}
+  if(hike)A('tech','lamp','Налобный фонарь',2);
+  A('tech','hp','Наушники',3);
+  A('tech','cam','Камера или экшн-камера',3,beach?'Для воды нужен водонепроницаемый чехол':'');
+
+  /* Гигиена */
+  A('hyg','tooth','Зубная щётка и паста',2);
+  A('hyg','shower',short?'Дорожные мини-флаконы':'Шампунь и гель для душа',2,short?'В ручную кладь жидкости до 100 мл':'Отели часто дают свои, но привычные удобнее');
+  A('hyg','deo','Дезодорант',2);
+  A('hyg','lens','Очки или линзы с раствором',2,'Если носите');
+  A('hyg','personal','Личные средства гигиены',2,'Всё, чем пользуетесь каждый день');
+  if(beach&&w.hi>=24)A('hyg','spf','Солнцезащитный крем SPF 30–50',1,'Наносите заново каждые 2 часа и после купания');
+  else if(sun)A('hyg','spf','Солнцезащитный крем',2,(hike||ski)?'В горах ультрафиолета больше':'');
+  if(cold||ski)A('hyg','lip','Крем для рук и гигиеническая помада',2,'Ветер и мороз сушат кожу');
+  var mq=c?c.mosq:0;
+  if(mq)A('hyg','mosq','Репеллент от комаров',mq===2?1:2,mq===2?'В тропиках комары бывают переносчиками болезней: защищайтесь и днём':'Особенно вечером у воды');
+  if(beach&&warm)A('hyg','after','Крем после загара',3);
+  A('hyg','wipes','Влажные салфетки и антисептик',hike?2:3);
+  if(beach||wet)A('hyg','wetbag','Пакет для мокрых вещей',3);
+  if(beach)A('hyg','towel','Пляжное полотенце',3,'Многие отели выдают свои');
+  if(hike)A('hyg','qtowel','Быстросохнущее полотенце',3);
+  if(long)A('hyg','laundry','Мини-упаковка стирального порошка',3,'Дольше недели проще стирать');
+
+  /* Лекарства */
+  A('med','own','Личные лекарства',1,'С запасом на 3 дня, в оригинальной упаковке');
+  A('med','pain','Обезболивающее и жаропонижающее',1);
+  var st=c?c.stomach:1;
+  A('med','stom','Средства от расстройства желудка',st===2?1:2,'Активированный уголь и порошки для восстановления водного баланса');
+  A('med','allergy','Антигистаминное',2);
+  A('med','plaster','Пластыри и антисептик',hike?1:2,hike?'Пластыри от мозолей на тропе очень выручают':'');
+  if(chill)A('med','cold','От простуды: капли и спрей для горла',2);
+  if(beach&&warm)A('med','panth','Пантенол от ожогов',2);
+  if(mq)A('med','bite','Гель от укусов',3);
+  A('med','motion','От укачивания',3);
+
+  /* Для этого места */
+  if(c)c.local.forEach(function(l,idx){
+    if(l[3]&&!flag[l[3]])return;
+    A('loc',c.id+'-'+idx,l[0],l[2],l[1]);
+  });
+  else{
+    A('loc','g-cur','Местная валюта наличными',2,'Мелкие купюры пригодятся для такси и рынков');
+    A('loc','g-rules','Правила ввоза лекарств и продуктов',2,'Проверьте список ограничений до поездки');
+  }
+  if(beach){
+    if(c&&c.coral)A('loc','coral','Тапочки для кораллов и камней',c.coral===2?2:3,'Защитят от ежей и острых кораллов');
+    if(c&&c.snorkel)A('loc','snorkel','Маска и трубка',3,'Можно взять в прокате, но своя удобнее');
+    A('loc','dry','Гидрочехол для телефона',3);
+    A('loc','beachbag','Пляжная сумка',3);
+  }
+  if(city){
+    A('loc','daybag','Небольшой городской рюкзак или сумка',2);
+    if(c&&c.pick)A('loc','pick','Сумка на молнии, которую носят перед собой',2,'В метро и у достопримечательностей работают карманники');
+    A('loc','bottle','Многоразовая бутылка для воды',hot?2:3);
+  }
+  if(hike){
+    A('loc','pack','Рюкзак 20–30 литров',1);
+    A('loc','water','Бутылка или питьевая система на 1–2 литра',1);
+    A('loc','snack','Перекус: орехи и батончики',2);
+    if(wet)A('loc','pcover','Дождевой чехол на рюкзак',2);
+    A('loc','poles','Трекинговые палки',3);
+  }
+  if(biz){A('loc','bag','Сумка или портфель для ноутбука',2);A('loc','notebook','Блокнот и ручка',3)}
+  if(ski){
+    A('loc','pass','Ски-пасс или бронь проката',1,'Бронируйте заранее онлайн');
+    A('loc','skibag','Сумка или чехол для экипировки',3);
+    A('loc','warmers','Грелки для рук и ног',3);
+  }
+  return out;
+}
+
+/* Погода: текст, заметки, график */
+function advice(w){
+  var a,hi=w.hi;
+  if(hi>=32)a='Очень жарко.';else if(hi>=28)a='Жарко.';else if(hi>=22)a='Тепло.';else if(hi>=16)a='Мягкая погода.';else if(hi>=8)a='Прохладно.';else if(hi>=0)a='Холодно.';else a='Мороз.';
+  if(hi>=22)a+=' Нужны лёгкие вещи'+(w.rain<=1?' и защита от солнца.':'.');
+  else if(hi>=16)a+=' Лучше одеваться слоями: днём футболка, вечером кофта.';
+  else if(hi>=8)a+=' Нужны куртка и закрытая обувь.';
+  else a+=' Нужна тёплая одежда по слоям.';
+  if(w.rain>=2)a+=' Часто идут дожди.';else if(w.rain===1)a+=' Возможны дожди.';
+  if(hi-w.lo>=12&&w.lo<=14)a+=' Вечером заметно прохладнее.';
+  return a;
+}
+function notes(){
+  var w=S.w,m=S.month,N=[],T={};
+  S.types.forEach(function(t){T[t]=1});
+  if(T.ski&&w.hi>10)N.push('В '+MON_PREP[m]+' для лыж обычно слишком тепло (днём '+temp(w.hi)+'). Лыжные вещи в список не добавлены.');
+  if(T.beach&&w.hi<18)N.push('В '+MON_PREP[m]+' для купания прохладно: днём около '+temp(w.hi)+'. Купальник оставлен по желанию.');
+  if(T.hike&&w.rain>=2)N.push('В это время часто идут дожди, тропы скользкие. Нужны обувь с протектором и дождевик.');
+  if(S.days<=3)N.push('Короткая поездка: всё поместится в ручную кладь, список сокращён.');
+  if(S.days>=14)N.push('Долгая поездка: берите вещи на 7 дней и стирайте в пути.');
+  return N;
+}
+function spark(arr,m){
+  var W=260,H=76,pl=8,pr=8,pt=18,pb=20,mn=Math.min.apply(null,arr),mx=Math.max.apply(null,arr),rg=Math.max(mx-mn,8),k,line='',labs='';
+  var x=function(i){return pl+i*(W-pl-pr)/11},y=function(v){return pt+(H-pt-pb)*(1-(v-mn)/rg)};
+  for(k=0;k<12;k++)line+=(k?'L':'M')+x(k).toFixed(1)+' '+y(arr[k]).toFixed(1);
+  var area=line+'L'+x(11).toFixed(1)+' '+(H-pb)+'L'+x(0).toFixed(1)+' '+(H-pb)+'Z';
+  [0,3,6,9,11].forEach(function(j){labs+='<text class="sp-lab" x="'+x(j).toFixed(1)+'" y="'+(H-5)+'" text-anchor="'+(j===0?'start':j===11?'end':'middle')+'">'+MON_SHORT[j]+'</text>'});
+  var dx=x(m),dy=y(arr[m]),tx=Math.min(Math.max(dx,22),W-22);
+  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Средняя дневная температура по месяцам, выбран '+MONTHS[m]+'">'+
+    '<path class="sp-area" d="'+area+'"/><path class="sp-base" d="M'+pl+' '+(H-pb)+'H'+(W-pr)+'"/><path class="sp-line" d="'+line+'"/>'+
+    '<circle class="sp-dot" cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="5"/>'+
+    '<text class="sp-val" x="'+tx.toFixed(1)+'" y="'+Math.max(dy-10,10).toFixed(1)+'" text-anchor="middle">'+temp(arr[m])+'</text>'+labs+'</svg>';
+}
+
+/* Отрисовка формы и погоды */
+function paintPass(){
+  $('#code').textContent=S.cur?S.cur.code:'---';
+  $('#month').value=String(S.month);
+  $('#daysOut').textContent=S.days+' '+plural(S.days,'день','дня','дней');
+  $$('#types .chip').forEach(function(b){b.setAttribute('aria-pressed',S.types.indexOf(b.dataset.t)>=0?'true':'false')});
+  $$('#quick .chip').forEach(function(b){b.setAttribute('aria-pressed',S.cur&&S.cur.id===b.dataset.q?'true':'false')});
+  var unknown=norm(S.dest).length>0&&!S.cur;
+  $('#climateBox').hidden=!unknown;
+  if(unknown)$('#climateHint').textContent='Места «'+S.dest.trim()+'» пока нет в базе. Выберите климат, и погода будет оценена по похожему региону.';
+  $$('#climateChips .chip').forEach(function(b){b.setAttribute('aria-pressed',S.climate===b.dataset.k?'true':'false')});
+}
+function paintWx(){
+  var box=$('#wx'),w=S.w,m=S.month;
+  if(!norm(S.dest)){box.hidden=true;return}
+  box.hidden=false;
+  var season=TROPIC_IDS[w.ref.id]?(w.rain>=2?'сезон дождей':'сухой сезон'):SEASON[m].toLowerCase();
+  $('#wMonth').textContent=MONTHS[m]+' · '+season+(S.cur?'':' · ориентировочно');
+  $('#wHi').textContent=temp(w.hi);
+  $('#wLo').textContent='ночью '+temp(w.lo);
+  $('#wRain').textContent=['Осадки редко','Возможны дожди','Часто идут дожди'][w.rain];
+  $('#wAdv').textContent=advice(w);
+  $('#wSpark').innerHTML=spark(w.ref.hi,m);
+  var info='';
+  if(S.cur){
+    info+='<dt>Розетки</dt><dd>'+esc(S.cur.plug)+'</dd><dt>Валюта</dt><dd>'+esc(S.cur.cur)+'</dd>';
+    if(S.cur.entry)info+='<dt>Въезд</dt><dd>'+esc(S.cur.entry)+'</dd>';
+  }
+  $('#wInfo').innerHTML=info;
+  $('#wNotes').innerHTML=notes().map(function(t){return '<li>'+esc(t)+'</li>'}).join('');
+}
+
+/* Список */
+function itemHtml(x,done,meta,del){
+  return '<div class="item'+(done?' done':'')+'" data-id="'+esc(x.id)+'"><label class="lbl"><input type="checkbox"'+(done?' checked':'')+'><span class="box" aria-hidden="true"></span><span class="tx"><span class="nm">'+esc(x.name)+'</span>'+
+    (x.note?'<span class="nt">'+esc(x.note)+'</span>':'')+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span></label>'+
+    (del?'<button type="button" class="del" data-del="'+esc(x.id)+'" aria-label="Удалить: '+esc(x.name)+'">×</button>':'')+'</div>';
+}
+function section(id,title,sub,body){
+  return '<details class="sec" data-sec="'+id+'"'+(S.collapsed[id]?'':' open')+'><summary><div style="min-width:0"><h2>'+esc(title)+'</h2>'+(sub?'<span class="sub">'+esc(sub)+'</span>':'')+'</div><span class="cnt"></span><span class="chev" aria-hidden="true"></span></summary>'+body+'</details>';
+}
+function renderList(){
+  var box=$('#list');
+  if(!norm(S.dest)){
+    box.innerHTML='<div class="empty"><b>Куда едем?</b>Введите место или выберите направление выше, и здесь появится список вещей.</div>';
+    $('#bar').hidden=true;$('#foot').hidden=true;return;
+  }
+  var items=build(),key=tripKey(),ck=S.checks[key]||{},html='';
+  var catIdx={};CATS.forEach(function(c,i){catIdx[c[0]]=i});
+  var catName={};CATS.forEach(function(c){catName[c[0]]=c[2]});
+  var first=items.filter(function(x){return x.prio===1}).sort(function(a,b){return catIdx[a.cat]-catIdx[b.cat]||a.o-b.o});
+  html+='<div class="prio" data-sec="prio"><div class="prio-head"><span class="hole" aria-hidden="true"></span><div><h2>В первую очередь</h2><span class="sub">Без этого лучше не выезжать</span></div><span class="cnt"></span></div>'+
+    first.map(function(x){return itemHtml(x,!!ck[x.id],catName[x.cat],false)}).join('')+'</div>';
+  CATS.forEach(function(c){
+    var rest=items.filter(function(x){return x.cat===c[0]&&x.prio>1}).sort(function(a,b){return a.prio-b.prio||a.o-b.o});
+    if(!rest.length)return;
+    var sub='';
+    if(c[0]==='loc'){
+      var tl=TYPES.filter(function(t){return S.types.indexOf(t[0])>=0}).map(function(t){return t[1]}).join(', ');
+      sub=(S.cur?S.cur.title:S.dest.trim())+' · '+tl;
+    }
+    html+=section(c[0],c[1],sub,rest.map(function(x){return itemHtml(x,!!ck[x.id],x.prio===3?'по желанию':'',false)}).join(''));
+  });
+  var own=S.custom[key]||[];
+  html+=section('own','Своё','Добавьте то, чего нет в списке',
+    own.map(function(x){return itemHtml({id:x.id,name:x.name,note:''},!!ck[x.id],'',true)}).join('')+
+    '<div class="add"><input id="addIn" type="text" maxlength="80" placeholder="Например, плед" autocomplete="off" enterkeyhint="done" aria-label="Своя вещь"><button type="button" class="btn" id="addBtn">Добавить</button></div>');
+  box.innerHTML=html;
+  box.classList.toggle('hide-done',S.hideDone);
+  $('#bar').hidden=false;$('#foot').hidden=false;
+  updateCounts();
+}
+function updateCounts(){
+  var all=$$('#list .item'),done=$$('#list .item.done'),pct=all.length?Math.round(done.length/all.length*100):0;
+  $('#fill').style.width=pct+'%';
+  $('#track').setAttribute('aria-valuenow',String(pct));
+  $('#barTxt').innerHTML=(all.length&&done.length===all.length)?'Чемодан собран. Хорошей дороги!':'<b>'+done.length+'</b> из '+all.length+' собрано';
+  $$('#list [data-sec]').forEach(function(s){
+    var t=$$('.item',s).length,k=$$('.item.done',s).length,cnt=$('.cnt',s);
+    cnt.textContent=t?k+'/'+t:'';
+    s.classList.toggle('full',t>0&&k===t);
+  });
+}
+function update(){
+  S.w=weather();
+  paintPass();paintWx();renderList();save();
+}
+function onDest(){
+  var prev=S.lastId;
+  S.cur=resolve(S.dest);
+  var id=S.cur?S.cur.id:null;
+  if(S.cur&&id!==prev)S.types=S.cur.types.slice();
+  S.lastId=id;
+  update();
+}
+
+/* Первичная сборка интерфейса и события */
+function init(){
+  load();
+  S.cur=resolve(S.dest);S.lastId=S.cur?S.cur.id:null;
+  $('#month').innerHTML=MONTHS.map(function(n,i){return '<option value="'+i+'">'+n+'</option>'}).join('');
+  $('#types').innerHTML=TYPES.map(function(t){return '<button type="button" class="chip" data-t="'+t[0]+'" aria-pressed="false">'+t[1]+'</button>'}).join('');
+  $('#quick').innerHTML=['tr','ala','fr','ae','th','eg','ist','bali'].map(function(id){return '<button type="button" class="chip q" data-q="'+id+'" aria-pressed="false">'+byId(id).title+'</button>'}).join('');
+  $('#climateChips').innerHTML=CLIMATES.map(function(c){return '<button type="button" class="chip" data-k="'+c[0]+'" aria-pressed="false">'+c[1]+'</button>'}).join('');
+  $('#places').innerHTML=D.map(function(d){return '<option value="'+esc(d.title)+'"></option>'}).join('');
+  $('#dest').value=S.dest;
+  $('#hideDone').setAttribute('aria-pressed',S.hideDone?'true':'false');
+
+  $('#dest').addEventListener('input',function(){S.dest=this.value;onDest()});
+  $('#quick').addEventListener('click',function(e){
+    var b=e.target.closest('.chip');if(!b)return;
+    S.dest=byId(b.dataset.q).title;$('#dest').value=S.dest;onDest();
+  });
+  $('#month').addEventListener('change',function(){S.month=+this.value;update()});
+  $('#dMinus').addEventListener('click',function(){S.days=Math.max(1,S.days-1);update()});
+  $('#dPlus').addEventListener('click',function(){S.days=Math.min(60,S.days+1);update()});
+  $('#types').addEventListener('click',function(e){
+    var b=e.target.closest('.chip');if(!b)return;
+    var t=b.dataset.t,ix=S.types.indexOf(t);
+    if(ix>=0){if(S.types.length>1)S.types.splice(ix,1)}else S.types.push(t);
+    update();
+  });
+  $('#climateChips').addEventListener('click',function(e){
+    var b=e.target.closest('.chip');if(!b)return;
+    S.climate=b.dataset.k;update();
+  });
+  $('#hideDone').addEventListener('click',function(){
+    S.hideDone=!S.hideDone;
+    this.setAttribute('aria-pressed',S.hideDone?'true':'false');
+    $('#list').classList.toggle('hide-done',S.hideDone);
+    save();
+  });
+  var list=$('#list');
+  list.addEventListener('change',function(e){
+    var it=e.target.closest('.item');if(!it||e.target.type!=='checkbox')return;
+    var key=tripKey(),ck=(S.checks[key]=S.checks[key]||{}),id=it.dataset.id;
+    if(e.target.checked)ck[id]=1;else delete ck[id];
+    it.classList.toggle('done',e.target.checked);
+    updateCounts();save();
+  });
+  list.addEventListener('click',function(e){
+    var del=e.target.closest('[data-del]');
+    if(del){
+      var key=tripKey(),id=del.dataset.del;
+      S.custom[key]=(S.custom[key]||[]).filter(function(x){return x.id!==id});
+      if(S.checks[key])delete S.checks[key][id];
+      save();renderList();return;
+    }
+    if(e.target.closest('#addBtn'))addOwn();
+  });
+  list.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&e.target.id==='addIn'){e.preventDefault();addOwn()}
+  });
+  list.addEventListener('toggle',function(e){
+    var s=e.target;if(s.dataset&&s.dataset.sec)S.collapsed[s.dataset.sec]=!s.open;
+  },true);
+  var resetBtn=$('#reset'),resetT=0;
+  resetBtn.addEventListener('click',function(){
+    if(!resetT){
+      resetBtn.textContent='Точно сбросить все отметки?';
+      resetT=setTimeout(function(){resetT=0;resetBtn.textContent='Сбросить отметки'},4000);
+      return;
+    }
+    clearTimeout(resetT);resetT=0;resetBtn.textContent='Сбросить отметки';
+    S.checks[tripKey()]={};save();renderList();
+  });
+  update();
+}
+function addOwn(){
+  var inp=$('#addIn'),v=inp?inp.value.trim():'';
+  if(!v)return;
+  var k=tripKey();
+  (S.custom[k]=S.custom[k]||[]).push({id:'u'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),name:v.slice(0,80)});
+  save();renderList();
+  var n=$('#addIn');if(n)n.focus();
+}
+init();
+</script>
+
+</body>
+</html>
